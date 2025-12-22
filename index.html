@@ -1,0 +1,1167 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sudoku Logic Tutor - ฝึกตรรกะและการเรียนรู้</title>
+    <style>
+        :root {
+            --bg-color: #f0f4f8;
+            --gradient-primary: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            --gradient-secondary: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            --gradient-warning: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            --gradient-danger: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            --card-bg: #ffffff;
+            --primary: #3b82f6;
+            --primary-dark: #1d4ed8;
+            --secondary: #64748b;
+            --success: #10b981;
+            --error: #ef4444;
+            --warning: #f59e0b;
+            --border: #e2e8f0;
+            --grid-dark: #1e293b;
+            --cell-size: 50px;
+            --shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+            --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.07), 0 4px 6px -2px rgba(0, 0, 0, 0.03);
+            --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.08), 0 10px 10px -5px rgba(0, 0, 0, 0.02);
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--grid-dark);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .container {
+            max-width: 1000px;
+            width: 100%;
+            display: grid;
+            grid-template-columns: 1fr 380px;
+            gap: 25px;
+            margin-top: 10px;
+        }
+
+        header {
+            grid-column: 1 / -1;
+            text-align: center;
+            margin-bottom: 15px;
+            padding: 15px;
+            border-radius: var(--radius-lg);
+            background: var(--card-bg);
+            box-shadow: var(--shadow-md);
+            position: relative;
+            overflow: hidden;
+        }
+
+        header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: var(--gradient-primary);
+        }
+
+        h1 {
+            margin: 0;
+            color: var(--primary-dark);
+            font-weight: 600;
+            font-size: 2.2rem;
+        }
+
+        .subtitle {
+            color: var(--secondary);
+            margin: 5px 0 0;
+            font-size: 1.1rem;
+        }
+
+        .board-container {
+            background: var(--card-bg);
+            padding: 25px;
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-lg);
+            transition: transform 0.3s ease;
+        }
+
+        .board-container:hover {
+            transform: translateY(-2px);
+        }
+
+        .sudoku-grid {
+            display: grid;
+            grid-template-columns: repeat(9, var(--cell-size));
+            grid-template-rows: repeat(9, var(--cell-size));
+            border: 3px solid var(--grid-dark);
+            margin: 0 auto;
+            user-select: none;
+            box-shadow: var(--shadow-sm);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .cell {
+            width: var(--cell-size);
+            height: var(--cell-size);
+            border: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            background-color: white;
+        }
+
+        .cell:hover {
+            background-color: #f8fafc;
+        }
+
+        .cell:nth-child(3n) {
+            border-right: 2px solid var(--grid-dark);
+        }
+
+        .cell:nth-child(9n) {
+            border-right: 1px solid var(--border);
+        }
+
+        .cell:nth-child(n+19):nth-child(-n+27),
+        .cell:nth-child(n+46):nth-child(-n+54) {
+            border-bottom: 2px solid var(--grid-dark);
+        }
+
+        .cell.fixed {
+            background-color: #f8fafc;
+            color: #475569;
+            cursor: default;
+            font-weight: 700;
+        }
+
+        .cell.fixed:hover {
+            background-color: #f1f5f9;
+        }
+
+        .cell.error {
+            background-color: #fee2e2;
+            color: var(--error);
+            animation: pulseError 0.5s ease;
+        }
+
+        @keyframes pulseError {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.03); }
+            100% { transform: scale(1); }
+        }
+
+        .cell.selected {
+            background-color: #dbeafe;
+            box-shadow: inset 0 0 0 2px var(--primary);
+        }
+
+        .cell.highlighted {
+            background-color: #f1f5f9;
+        }
+
+        .cell.correct {
+            background-color: #dcfce7;
+            color: #166534;
+            animation: pulseCorrect 0.5s ease;
+        }
+
+        @keyframes pulseCorrect {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+        }
+
+        .panel {
+            background: var(--card-bg);
+            padding: 25px;
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-lg);
+            transition: transform 0.3s ease;
+        }
+
+        .panel:hover {
+            transform: translateY(-2px);
+        }
+
+        .panel h3 {
+            margin-top: 0;
+            color: var(--primary-dark);
+            font-weight: 500;
+            font-size: 1.3rem;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 20px;
+        }
+
+        .difficulty-selector {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        button {
+            padding: 12px 18px;
+            border: none;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .btn-new {
+            background: var(--gradient-primary);
+            color: white;
+            width: 100%;
+        }
+
+        .btn-hint {
+            background: var(--gradient-warning);
+            color: white;
+            width: 100%;
+        }
+
+        .btn-analyze {
+            background: linear-gradient(135deg, #64748b 0%, #475569 100%);
+            color: white;
+            width: 100%;
+        }
+
+        .btn-undo {
+            background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+            color: white;
+            width: 100%;
+        }
+
+        .diff-btn {
+            flex: 1;
+            font-size: 0.9rem;
+            background: #f1f5f9;
+            color: #475569;
+            padding: 10px 5px;
+        }
+
+        .diff-btn.active.easy {
+            background: var(--gradient-secondary);
+            color: white;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .diff-btn.active.medium {
+            background: var(--gradient-warning);
+            color: white;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .diff-btn.active.hard {
+            background: var(--gradient-danger);
+            color: white;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stats-item {
+            background: #f8fafc;
+            padding: 15px;
+            border-radius: var(--radius-md);
+            text-align: center;
+            transition: all 0.2s ease;
+        }
+
+        .stats-item:hover {
+            background: #f1f5f9;
+            transform: translateY(-2px);
+        }
+
+        .stats-label {
+            font-size: 0.85rem;
+            color: var(--secondary);
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .stats-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--grid-dark);
+        }
+
+        .stats-value.mistakes {
+            color: var(--error);
+        }
+
+        .stats-value.time {
+            color: var(--primary);
+        }
+
+        .hint-box {
+            margin-top: 25px;
+            padding: 20px;
+            background: #f0f9ff;
+            border-left: 5px solid var(--primary);
+            font-size: 0.95rem;
+            min-height: 80px;
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .hint-title {
+            font-weight: 600;
+            color: var(--primary-dark);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .mistake-stats-card {
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            padding: 20px;
+            border-radius: var(--radius-md);
+            border-left: 4px solid var(--warning);
+        }
+
+        .advice-box {
+            margin-top: 15px;
+            padding: 15px;
+            background: #f0f9ff;
+            border-radius: var(--radius-sm);
+            border: 1px solid #dbeafe;
+        }
+
+        .footer {
+            grid-column: 1 / -1;
+            text-align: center;
+            margin-top: 25px;
+            color: var(--secondary);
+            font-size: 0.9rem;
+            padding: 15px;
+        }
+
+        #analysis-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .modal {
+            background: white;
+            width: 100%;
+            max-width: 700px;
+            max-height: 85vh;
+            border-radius: var(--radius-lg);
+            padding: 30px;
+            overflow-y: auto;
+            box-shadow: var(--shadow-lg);
+            position: relative;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--secondary);
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+        }
+
+        .modal-close:hover {
+            background: #f1f5f9;
+            color: var(--error);
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: var(--success);
+            color: white;
+            padding: 15px 20px;
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-lg);
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s ease;
+            z-index: 1001;
+            max-width: 300px;
+        }
+
+        .toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .toast.error {
+            background: var(--error);
+        }
+
+        @media (max-width: 900px) {
+            .container {
+                grid-template-columns: 1fr;
+                max-width: 600px;
+            }
+            .sudoku-grid {
+                --cell-size: 44px;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .sudoku-grid {
+                --cell-size: 38px;
+            }
+            .container {
+                padding: 10px;
+            }
+            .panel, .board-container {
+                padding: 20px;
+            }
+            h1 {
+                font-size: 1.8rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>🧩 Sudoku Logic Tutor</h1>
+        <p class="subtitle">เรียนรู้การแก้ปริศนาด้วยตรรกะ ไม่ใช่การเดา</p>
+    </header>
+
+    <div class="container">
+        <div class="board-container">
+            <div id="sudoku-board" class="sudoku-grid"></div>
+            <div class="hint-box" id="hint-display">
+                <div class="hint-title">
+                    <span>💡 AI Tutor:</span>
+                </div>
+                <div id="hint-text">เลือกช่องว่างเพื่อรับคำแนะนำเชิงตรรกะ...</div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <div class="panel">
+                <h3>ระดับความยาก</h3>
+                <div class="difficulty-selector">
+                    <button class="diff-btn active easy" onclick="setDifficulty('easy')">Easy</button>
+                    <button class="diff-btn medium" onclick="setDifficulty('medium')">Medium</button>
+                    <button class="diff-btn hard" onclick="setDifficulty('hard')">Hard</button>
+                </div>
+                
+                <div class="stats-grid">
+                    <div class="stats-item">
+                        <span class="stats-label">ระดับ</span>
+                        <div class="stats-value" id="stat-diff">Easy</div>
+                    </div>
+                    <div class="stats-item">
+                        <span class="stats-label">ช่องว่าง</span>
+                        <div class="stats-value" id="stat-empty">0</div>
+                    </div>
+                    <div class="stats-item">
+                        <span class="stats-label">เวลา</span>
+                        <div class="stats-value time" id="stat-time">00:00</div>
+                    </div>
+                    <div class="stats-item">
+                        <span class="stats-label">ผิดพลาด</span>
+                        <div class="stats-value mistakes" id="stat-mistakes">0</div>
+                    </div>
+                </div>
+                
+                <button class="btn-new" onclick="startNewGame()" id="btn-new">
+                    <span>🆕</span> เริ่มเกมใหม่
+                </button>
+                <button class="btn-hint" onclick="getAIHint()" id="btn-hint">
+                    <span>🧠</span> ขอคำแนะนำ
+                </button>
+                <button class="btn-undo" onclick="undoMove()" id="btn-undo" style="margin-top:12px">
+                    <span>↶</span> ย้อนกลับ
+                </button>
+                <button class="btn-analyze" onclick="showAnalysis()" style="margin-top:12px">
+                    <span>📊</span> วิเคราะห์หลังเกม
+                </button>
+            </div>
+
+            <div class="panel">
+                <h3>สถิติความผิดพลาด</h3>
+                <div class="mistake-stats-card" id="mistake-stats-summary">
+                    ยังไม่มีข้อมูลความผิดพลาด
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            Sudoku Logic Tutor - ฝึกตรรกะและการเรียนรู้
+        </div>
+    </div>
+
+    <div id="analysis-overlay">
+        <div class="modal">
+            <button class="modal-close" onclick="closeAnalysis()">&times;</button>
+            <h2>📊 การวิเคราะห์เชิงตรรกะ</h2>
+            <div id="analysis-content"></div>
+            <button class="btn-new" style="margin-top:20px" onclick="closeAnalysis()">ปิดหน้าต่าง</button>
+        </div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <script>
+        const GameState = {
+            currentBoard: Array(81).fill(0),
+            solution: Array(81).fill(0),
+            fixedCells: [],
+            mistakes: [],
+            moveHistory: [],
+            difficulty: 'easy',
+            timer: null,
+            seconds: 0,
+            selectedCell: null,
+            isCompleted: false
+        };
+
+        const boardEl = document.getElementById('sudoku-board');
+        const btnUndo = document.getElementById('btn-undo');
+        const toast = document.getElementById('toast');
+
+        function shuffleArray(array) {
+            const newArray = [...array];
+            for (let i = newArray.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+            }
+            return newArray;
+        }
+
+        function getPosition(index) {
+            const row = Math.floor(index / 9);
+            const col = index % 9;
+            const box = Math.floor(row / 3) * 3 + Math.floor(col / 3);
+            return { row, col, box };
+        }
+
+        function getIndex(row, col) {
+            return row * 9 + col;
+        }
+
+        function isValidPlacement(board, index, num) {
+            const { row, col } = getPosition(index);
+            
+            for (let c = 0; c < 9; c++) {
+                if (board[getIndex(row, c)] === num) return false;
+            }
+            
+            for (let r = 0; r < 9; r++) {
+                if (board[getIndex(r, col)] === num) return false;
+            }
+            
+            const boxRow = Math.floor(row / 3) * 3;
+            const boxCol = Math.floor(col / 3) * 3;
+            for (let r = boxRow; r < boxRow + 3; r++) {
+                for (let c = boxCol; c < boxCol + 3; c++) {
+                    if (board[getIndex(r, c)] === num) return false;
+                }
+            }
+            
+            return true;
+        }
+
+        function solveSudoku(board, startIndex = 0) {
+            for (let i = startIndex; i < 81; i++) {
+                if (board[i] === 0) {
+                    const numbers = shuffleArray([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+                    for (const num of numbers) {
+                        if (isValidPlacement(board, i, num)) {
+                            board[i] = num;
+                            if (solveSudoku(board, i + 1)) return true;
+                            board[i] = 0;
+                        }
+                    }
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        function generateFullBoard() {
+            const board = Array(81).fill(0);
+            for (let box = 0; box < 9; box += 4) {
+                const numbers = shuffleArray([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+                const boxRow = Math.floor(box / 3) * 3;
+                const boxCol = (box % 3) * 3;
+                let idx = 0;
+                for (let r = boxRow; r < boxRow + 3; r++) {
+                    for (let c = boxCol; c < boxCol + 3; c++) {
+                        board[getIndex(r, c)] = numbers[idx++];
+                    }
+                }
+            }
+            if (!solveSudoku(board)) {
+                return generateFullBoard();
+            }
+            return board;
+        }
+
+        function createPuzzle(fullBoard, difficulty) {
+            const board = [...fullBoard];
+            const fixedCells = [];
+            let attempts;
+            
+            switch(difficulty) {
+                case 'easy': attempts = 35; break;
+                case 'medium': attempts = 45; break;
+                case 'hard': attempts = 55; break;
+                default: attempts = 35;
+            }
+            
+            const positions = shuffleArray(Array.from({ length: 81 }, (_, i) => i));
+            let removed = 0;
+            
+            for (const pos of positions) {
+                if (removed >= attempts) break;
+                const temp = board[pos];
+                board[pos] = 0;
+                removed++;
+            }
+            
+            for (let i = 0; i < 81; i++) {
+                if (board[i] !== 0) fixedCells.push(i);
+            }
+            
+            return { board, fixedCells, emptyCells: attempts };
+        }
+
+        function startNewGame() {
+            clearInterval(GameState.timer);
+            GameState.seconds = 0;
+            GameState.mistakes = [];
+            GameState.moveHistory = [];
+            GameState.selectedCell = null;
+            GameState.isCompleted = false;
+            
+            document.getElementById('stat-mistakes').textContent = '0';
+            updateTimerDisplay();
+            btnUndo.disabled = true;
+            
+            const fullBoard = generateFullBoard();
+            GameState.solution = fullBoard;
+            
+            const { board, fixedCells, emptyCells } = createPuzzle(fullBoard, GameState.difficulty);
+            GameState.currentBoard = board;
+            GameState.fixedCells = fixedCells;
+            
+            document.getElementById('stat-empty').textContent = emptyCells;
+            renderBoard();
+            
+            GameState.timer = setInterval(() => {
+                GameState.seconds++;
+                updateTimerDisplay();
+            }, 1000);
+            
+            document.getElementById('hint-text').textContent = "เกมใหม่เริ่มแล้ว! ใช้ตรรกะในการหาตัวเลขที่หายไป";
+            showToast('เกมใหม่เริ่มต้นแล้ว!');
+        }
+
+        function setDifficulty(lvl) {
+            GameState.difficulty = lvl;
+            document.querySelectorAll('.diff-btn').forEach(b => {
+                b.classList.remove('active', 'easy', 'medium', 'hard');
+            });
+            const btn = document.querySelector(`.diff-btn.${lvl}`);
+            btn.classList.add('active', lvl);
+            document.getElementById('stat-diff').textContent = lvl.charAt(0).toUpperCase() + lvl.slice(1);
+            startNewGame();
+        }
+
+        function renderBoard() {
+            boardEl.innerHTML = '';
+            for (let i = 0; i < 81; i++) {
+                const cell = document.createElement('div');
+                cell.className = 'cell';
+                if (GameState.fixedCells.includes(i)) cell.classList.add('fixed');
+                cell.dataset.index = i;
+                if (GameState.currentBoard[i] !== 0) {
+                    cell.textContent = GameState.currentBoard[i];
+                }
+                if (i === GameState.selectedCell) {
+                    cell.classList.add('selected');
+                }
+                cell.addEventListener('click', () => selectCell(i));
+                boardEl.appendChild(cell);
+            }
+            if (GameState.selectedCell !== null) {
+                highlightRelatedCells(GameState.selectedCell);
+            }
+        }
+
+        function selectCell(index) {
+            if (GameState.isCompleted) return;
+            GameState.selectedCell = index;
+            document.querySelectorAll('.cell').forEach(cell => {
+                cell.classList.remove('selected', 'highlighted');
+            });
+            const cellEl = document.querySelector(`[data-index="${index}"]`);
+            if (cellEl) {
+                cellEl.classList.add('selected');
+                highlightRelatedCells(index);
+            }
+            if (GameState.currentBoard[index] === 0) {
+                document.getElementById('hint-text').textContent = "ช่องนี้ว่างอยู่ ลองใส่ตัวเลข หรือกดปุ่ม 'ขอคำแนะนำ'";
+            }
+        }
+
+        function highlightRelatedCells(index) {
+            const { row, col } = getPosition(index);
+            document.querySelectorAll('.cell').forEach(cell => {
+                const cellIndex = parseInt(cell.dataset.index);
+                const { row: r, col: c } = getPosition(cellIndex);
+                if (r === row || c === col) {
+                    cell.classList.add('highlighted');
+                }
+                const boxRow = Math.floor(row / 3);
+                const boxCol = Math.floor(col / 3);
+                const cellBoxRow = Math.floor(r / 3);
+                const cellBoxCol = Math.floor(c / 3);
+                if (cellBoxRow === boxRow && cellBoxCol === boxCol) {
+                    cell.classList.add('highlighted');
+                }
+            });
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (GameState.isCompleted || GameState.selectedCell === null) return;
+            const index = GameState.selectedCell;
+            if (GameState.fixedCells.includes(index)) return;
+            
+            if (e.key >= '1' && e.key <= '9') {
+                e.preventDefault();
+                handleInput(index, parseInt(e.key));
+            } else if (e.key === 'Backspace' || e.key === 'Delete' || e.key === '0') {
+                e.preventDefault();
+                handleInput(index, 0);
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                const { row } = getPosition(index);
+                if (row > 0) selectCell(index - 9);
+            } else if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                const { row } = getPosition(index);
+                if (row < 8) selectCell(index + 9);
+            } else if (e.key === 'ArrowLeft') {
+                e.preventDefault();
+                const { col } = getPosition(index);
+                if (col > 0) selectCell(index - 1);
+            } else if (e.key === 'ArrowRight') {
+                e.preventDefault();
+                const { col } = getPosition(index);
+                if (col < 8) selectCell(index + 1);
+            } else if (e.key === 'z' && (e.ctrlKey || e.metaKey)) {
+                e.preventDefault();
+                undoMove();
+            } else if (e.key === 'h' || e.key === 'H') {
+                e.preventDefault();
+                getAIHint();
+            } else if (e.key === 'Escape') {
+                closeAnalysis();
+            }
+        });
+
+        function handleInput(index, value) {
+            if (GameState.isCompleted || GameState.fixedCells.includes(index)) return;
+            const cellEl = document.querySelector(`[data-index="${index}"]`);
+            if (!cellEl) return;
+            
+            const previousValue = GameState.currentBoard[index];
+            
+            if (value === 0) {
+                GameState.currentBoard[index] = 0;
+                cellEl.textContent = '';
+                cellEl.classList.remove('error', 'correct');
+                if (previousValue !== 0) {
+                    GameState.moveHistory.push({ index, previousValue, newValue: 0, timestamp: Date.now() });
+                    btnUndo.disabled = false;
+                }
+                return;
+            }
+            
+            const conflict = checkConflict(index, value);
+            const isCorrect = value === GameState.solution[index];
+            
+            cellEl.classList.remove('error', 'correct');
+            
+            if (conflict) {
+                recordMistake(index, value, conflict);
+                cellEl.classList.add('error');
+                showToast(`ตัวเลขซ้ำใน${getConflictText(conflict)}`, true);
+            } else if (!isCorrect) {
+                recordMistake(index, value, 'logic');
+                cellEl.classList.add('error');
+                showToast('ตัวเลขนี้ไม่ถูกต้องตามตรรกะ', true);
+            } else {
+                cellEl.classList.add('correct');
+                showToast('ถูกต้อง! ✓');
+            }
+            
+            GameState.currentBoard[index] = value;
+            cellEl.textContent = value;
+            
+            if (previousValue !== value) {
+                GameState.moveHistory.push({ index, previousValue, newValue: value, timestamp: Date.now() });
+                btnUndo.disabled = false;
+            }
+            
+            checkWin();
+        }
+
+        function getConflictText(type) {
+            switch(type) {
+                case 'row': return 'แถว';
+                case 'column': return 'หลัก';
+                case 'box': return 'กล่อง 3x3';
+                default: return '';
+            }
+        }
+
+        function checkConflict(index, value) {
+            const { row, col } = getPosition(index);
+            
+            for (let c = 0; c < 9; c++) {
+                const checkIndex = getIndex(row, c);
+                if (checkIndex !== index && GameState.currentBoard[checkIndex] === value) return 'row';
+            }
+            
+            for (let r = 0; r < 9; r++) {
+                const checkIndex = getIndex(r, col);
+                if (checkIndex !== index && GameState.currentBoard[checkIndex] === value) return 'column';
+            }
+            
+            const boxRow = Math.floor(row / 3) * 3;
+            const boxCol = Math.floor(col / 3) * 3;
+            for (let r = boxRow; r < boxRow + 3; r++) {
+                for (let c = boxCol; c < boxCol + 3; c++) {
+                    const checkIndex = getIndex(r, c);
+                    if (checkIndex !== index && GameState.currentBoard[checkIndex] === value) return 'box';
+                }
+            }
+            
+            return null;
+        }
+
+        function recordMistake(index, value, type) {
+            const { row, col } = getPosition(index);
+            const recentMistake = GameState.mistakes.find(m => 
+                m.index === index && 
+                m.value === value && 
+                Date.now() - m.timestamp < 2000
+            );
+            if (!recentMistake) {
+                GameState.mistakes.push({
+                    index,
+                    row: row + 1,
+                    col: col + 1,
+                    value,
+                    type,
+                    timestamp: Date.now()
+                });
+                document.getElementById('stat-mistakes').textContent = GameState.mistakes.length;
+                updateMistakeStats();
+            }
+        }
+
+        function updateMistakeStats() {
+            const summary = document.getElementById('mistake-stats-summary');
+            if (GameState.mistakes.length === 0) {
+                summary.innerHTML = `
+                    <div style="text-align: center; padding: 10px;">
+                        <div style="font-size: 2rem; margin-bottom: 10px;">🎯</div>
+                        <div style="font-weight: 600; color: var(--success); margin-bottom: 5px;">ยอดเยี่ยม!</div>
+                        <div>คุณยังไม่ทำพลาดเลย รักษาสมาธิต่อไป</div>
+                    </div>
+                `;
+                return;
+            }
+            
+            const typeCounts = {};
+            GameState.mistakes.forEach(mistake => {
+                typeCounts[mistake.type] = (typeCounts[mistake.type] || 0) + 1;
+            });
+            
+            const mostCommonType = Object.keys(typeCounts).reduce((a, b) => 
+                typeCounts[a] > typeCounts[b] ? a : b
+            );
+            
+            let advice = '';
+            switch(mostCommonType) {
+                case 'row': advice = "ตรวจสอบ 'แถวแนวนอน' ให้ครบก่อนตัดสินใจ"; break;
+                case 'column': advice = "ตรวจสอบ 'หลักแนวตั้ง' ให้ครบก่อนตัดสินใจ"; break;
+                case 'box': advice = "อย่าลืมตรวจสอบ 'กล่อง 3x3' ด้วย"; break;
+                case 'logic': advice = "ใช้เทคนิคการตัดตัวเลือก (Elimination)"; break;
+            }
+            
+            summary.innerHTML = `
+                <div style="font-size: 1.1rem; font-weight: 600; color: var(--grid-dark); margin-bottom: 15px;">
+                    📈 สถิติความผิดพลาด
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                    <div><b>รวมความผิดพลาด:</b></div>
+                    <div style="color: var(--error); font-weight: 700;">${GameState.mistakes.length} ครั้ง</div>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                    <div><b>ประเภทที่พบบ่อย:</b></div>
+                    <div style="font-weight: 600;">${getConflictText(mostCommonType)}</div>
+                </div>
+                <div class="advice-box">
+                    <div style="font-weight: 600; color: var(--primary-dark); margin-bottom: 5px;">💡 คำแนะนำ:</div>
+                    <div>${advice}</div>
+                </div>
+            `;
+        }
+
+        function undoMove() {
+            if (GameState.moveHistory.length === 0 || GameState.isCompleted) return;
+            const lastMove = GameState.moveHistory.pop();
+            const { index, previousValue } = lastMove;
+            GameState.currentBoard[index] = previousValue;
+            const cellEl = document.querySelector(`[data-index="${index}"]`);
+            if (cellEl) {
+                cellEl.textContent = previousValue !== 0 ? previousValue : '';
+                cellEl.classList.remove('error', 'correct');
+                const mistakeIndex = GameState.mistakes.findIndex(m => 
+                    m.index === index && 
+                    m.timestamp >= lastMove.timestamp - 1000 && 
+                    m.timestamp <= lastMove.timestamp + 1000
+                );
+                if (mistakeIndex !== -1) {
+                    GameState.mistakes.splice(mistakeIndex, 1);
+                    document.getElementById('stat-mistakes').textContent = GameState.mistakes.length;
+                    updateMistakeStats();
+                }
+            }
+            btnUndo.disabled = GameState.moveHistory.length === 0;
+            showToast('ย้อนกลับการเคลื่อนไหวล่าสุด');
+        }
+
+        function getAIHint() {
+            if (GameState.isCompleted) {
+                showToast('เกมจบแล้ว! เริ่มเกมใหม่เพื่อเล่นอีกครั้ง', true);
+                return;
+            }
+            if (GameState.selectedCell === null) {
+                document.getElementById('hint-text').textContent = "กรุณาเลือกช่องว่างก่อนครับ";
+                showToast('เลือกช่องว่างก่อนขอคำแนะนำ', true);
+                return;
+            }
+            const index = GameState.selectedCell;
+            if (GameState.fixedCells.includes(index)) {
+                document.getElementById('hint-text').textContent = "ช่องนี้เป็นตัวเลขเริ่มต้นที่ไม่สามารถเปลี่ยนได้";
+                return;
+            }
+            if (GameState.currentBoard[index] !== 0) {
+                document.getElementById('hint-text').textContent = "ช่องนี้มีตัวเลขอยู่แล้ว ลองเลือกช่องว่างอื่นสิ!";
+                return;
+            }
+            const { row, col } = getPosition(index);
+            const correctValue = GameState.solution[index];
+            const candidates = [];
+            for (let num = 1; num <= 9; num++) {
+                if (isValidPlacement(GameState.currentBoard, index, num)) {
+                    candidates.push(num);
+                }
+            }
+            let hint = '';
+            if (candidates.length === 1) {
+                hint = `[ตรรกะพื้นฐาน] ช่องนี้สามารถใส่ได้แค่เลข ${candidates[0]} เท่านั้น`;
+            } else if (candidates.length <= 3) {
+                hint = `[ตัวเลือกจำกัด] ช่องนี้มีเพียง ${candidates.length} ตัวเลือก: ${candidates.join(', ')}`;
+            } else {
+                hint = `[การวิเคราะห์] ในแถวที่ ${row + 1} และหลักที่ ${col + 1} ลองหาตัวเลขที่หายไป. คำตอบคือเลข ${correctValue}`;
+            }
+            document.getElementById('hint-text').textContent = hint;
+            highlightNumber(correctValue);
+        }
+
+        function highlightNumber(num) {
+            document.querySelectorAll('.cell').forEach(cell => {
+                const index = parseInt(cell.dataset.index);
+                if (GameState.currentBoard[index] === num) {
+                    cell.style.backgroundColor = '#fef3c7';
+                    setTimeout(() => {
+                        cell.style.backgroundColor = '';
+                    }, 2000);
+                }
+            });
+        }
+
+        function checkWin() {
+            const isComplete = GameState.currentBoard.every(cell => cell !== 0);
+            if (!isComplete) return;
+            const isCorrect = GameState.currentBoard.every(
+                (cell, index) => cell === GameState.solution[index]
+            );
+            if (isCorrect) {
+                GameState.isCompleted = true;
+                clearInterval(GameState.timer);
+                document.getElementById('hint-text').innerHTML = `
+                    <div style="color: var(--success); font-weight: 600; font-size: 1.1rem;">
+                        🎉 ยินดีด้วย! คุณแก้ปริศนาสำเร็จ
+                    </div>
+                    <div style="margin-top: 10px;">
+                        เวลาที่ใช้: ${formatTime(GameState.seconds)} |
+                        ผิดพลาด: ${GameState.mistakes.length} ครั้ง
+                    </div>
+                `;
+                showToast(`🎊 ชนะ! ใช้เวลา ${formatTime(GameState.seconds)}`);
+                document.getElementById('btn-hint').disabled = true;
+                btnUndo.disabled = true;
+                setTimeout(() => {
+                    if (!document.getElementById('analysis-overlay').style.display || 
+                        document.getElementById('analysis-overlay').style.display === 'none') {
+                        showAnalysis();
+                    }
+                }, 1500);
+            }
+        }
+
+        function formatTime(seconds) {
+            const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+            const s = (seconds % 60).toString().padStart(2, '0');
+            return `${m}:${s}`;
+        }
+
+        function updateTimerDisplay() {
+            document.getElementById('stat-time').textContent = formatTime(GameState.seconds);
+        }
+
+        function showAnalysis() {
+            const overlay = document.getElementById('analysis-overlay');
+            const content = document.getElementById('analysis-content');
+            overlay.style.display = 'flex';
+            if (GameState.mistakes.length === 0) {
+                content.innerHTML = `
+                    <div style="text-align: center; padding: 30px 0;">
+                        <div style="font-size: 4rem; margin-bottom: 20px;">🏆</div>
+                        <h3 style="color: var(--success);">สมบูรณ์แบบ!</h3>
+                        <p>คุณแก้โจทย์นี้ได้โดยไม่มีข้อผิดพลาดเลย</p>
+                        <div style="margin-top: 20px; padding: 20px; background: #f0f9ff; border-radius: var(--radius-md);">
+                            <div><b>ระดับความยาก:</b> ${GameState.difficulty}</div>
+                            <div><b>เวลาที่ใช้:</b> ${formatTime(GameState.seconds)}</div>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+            let html = `
+                <h3>รายการวิเคราะห์ความผิดพลาด (${GameState.mistakes.length})</h3>
+                <div style="margin-bottom: 20px; padding: 15px; background: #f8fafc; border-radius: var(--radius-md);">
+                    <div><b>สรุปผล:</b> ${GameState.isCompleted ? 'สำเร็จ' : 'ยังไม่จบเกม'}</div>
+                    <div><b>เวลาที่ใช้:</b> ${formatTime(GameState.seconds)}</div>
+                </div>
+            `;
+            GameState.mistakes.forEach((m, i) => {
+                html += `
+                    <div style="border-bottom: 1px solid var(--border); padding: 15px 0;">
+                        <span style="color: var(--error); font-weight: 600;">❌ ครั้งที่ ${i+1}: แถว ${m.row} หลัก ${m.col} ใส่เลข ${m.value}</span><br>
+                        <div style="margin-top:5px">
+                            <span style="color: var(--success); font-weight: 600;">✅ วิธีคิดที่ถูก:</span> 
+                            ตรวจสอบ${getConflictText(m.type)}ให้ครบถ้วนก่อนใส่ตัวเลข
+                        </div>
+                    </div>
+                `;
+            });
+            html += `
+                <div style="margin-top: 30px; padding: 20px; background: #f0f9ff; border-radius: var(--radius-md);">
+                    <h4>💡 คำแนะนำสำหรับการฝึกซ้อม</h4>
+                    <ul style="padding-left: 20px;">
+                        <li>ฝึกสแกนทั้งแถวและหลักก่อนใส่ตัวเลข</li>
+                        <li>ใช้เทคนิคการตัดตัวเลือก (Elimination)</li>
+                        <li>ตรวจสอบกล่อง 3x3 ให้ครบทั้ง 9 ช่อง</li>
+                    </ul>
+                </div>
+            `;
+            content.innerHTML = html;
+        }
+
+        function closeAnalysis() {
+            document.getElementById('analysis-overlay').style.display = 'none';
+        }
+
+        function showToast(message, isError = false) {
+            toast.textContent = message;
+            toast.className = `toast ${isError ? 'error' : ''}`;
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        function init() {
+            setDifficulty('easy');
+            btnUndo.disabled = true;
+        }
+
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>
