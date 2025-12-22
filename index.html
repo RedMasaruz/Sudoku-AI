@@ -263,6 +263,10 @@
             width: 100%;
         }
 
+        .btn-hint:disabled {
+            background: linear-gradient(135deg, #94a3b8 0%, #64748b 100%);
+        }
+
         .btn-analyze {
             background: linear-gradient(135deg, #64748b 0%, #475569 100%);
             color: white;
@@ -459,6 +463,43 @@
             background: var(--error);
         }
 
+        /* เพิ่มสไตล์สำหรับ hint counter */
+        .hint-counter {
+            display: inline-block;
+            background: var(--primary);
+            color: white;
+            font-size: 0.8rem;
+            padding: 2px 8px;
+            border-radius: 20px;
+            margin-left: 8px;
+            vertical-align: middle;
+        }
+        
+        .hint-counter.warning {
+            background: var(--warning);
+        }
+        
+        .hint-counter.danger {
+            background: var(--error);
+        }
+        
+        .hint-used {
+            color: var(--warning);
+            font-weight: 600;
+            margin-top: 10px;
+            font-size: 0.9rem;
+        }
+        
+        .hint-limit-reached {
+            color: var(--error);
+            font-weight: 600;
+            padding: 10px;
+            background: #fee2e2;
+            border-radius: var(--radius-sm);
+            text-align: center;
+            margin-top: 10px;
+        }
+
         @media (max-width: 900px) {
             .container {
                 grid-template-columns: 1fr;
@@ -487,7 +528,7 @@
 </head>
 <body>
     <header>
-        <h1>🧩 Sudoku Logic Tutor</h1>
+        <h1>🧩 Sudoku Tutor</h1>
         <p class="subtitle">เรียนรู้การแก้ปริศนาด้วยตรรกะ ไม่ใช่การเดา</p>
     </header>
 
@@ -579,7 +620,9 @@
             timer: null,
             seconds: 0,
             selectedCell: null,
-            isCompleted: false
+            isCompleted: false,
+            hintCount: 5, // เพิ่มตัวนับ hint (เริ่มที่ 5 ครั้ง)
+            hintUsed: 0   // จำนวน hint ที่ใช้แล้ว
         };
 
         const boardEl = document.getElementById('sudoku-board');
@@ -700,10 +743,15 @@
             GameState.moveHistory = [];
             GameState.selectedCell = null;
             GameState.isCompleted = false;
+            GameState.hintCount = 5; // รีเซ็ต hint เป็น 5 ครั้ง
+            GameState.hintUsed = 0;   // รีเซ็ตจำนวน hint ที่ใช้แล้ว
             
             document.getElementById('stat-mistakes').textContent = '0';
             updateTimerDisplay();
             btnUndo.disabled = true;
+            
+            // อัพเดทปุ่ม hint
+            updateHintButton();
             
             const fullBoard = generateFullBoard();
             GameState.solution = fullBoard;
@@ -720,7 +768,10 @@
                 updateTimerDisplay();
             }, 1000);
             
-            document.getElementById('hint-text').textContent = "เกมใหม่เริ่มแล้ว! ใช้ตรรกะในการหาตัวเลขที่หายไป";
+            document.getElementById('hint-text').innerHTML = `
+                <div>เกมใหม่เริ่มแล้ว! ใช้ตรรกะในการหาตัวเลขที่หายไป</div>
+                <div class="hint-used">มี Hint เหลือ: <span id="hint-remaining">5</span> ครั้ง</div>
+            `;
             showToast('เกมใหม่เริ่มต้นแล้ว!');
         }
 
@@ -733,6 +784,34 @@
             btn.classList.add('active', lvl);
             document.getElementById('stat-diff').textContent = lvl.charAt(0).toUpperCase() + lvl.slice(1);
             startNewGame();
+        }
+
+        function updateHintButton() {
+            const btnHint = document.getElementById('btn-hint');
+            const hintCountElement = btnHint.querySelector('.hint-counter');
+            
+            // ลบ hint counter เดิมถ้ามี
+            if (hintCountElement) {
+                hintCountElement.remove();
+            }
+            
+            // เพิ่ม hint counter ใหม่
+            const counterSpan = document.createElement('span');
+            counterSpan.className = 'hint-counter';
+            counterSpan.textContent = GameState.hintCount;
+            
+            // เปลี่ยนสีตามจำนวน hint ที่เหลือ
+            if (GameState.hintCount <= 2) {
+                counterSpan.classList.add('danger');
+            } else if (GameState.hintCount <= 3) {
+                counterSpan.classList.add('warning');
+            }
+            
+            // เพิ่ม counter ไปที่ปุ่ม
+            btnHint.appendChild(counterSpan);
+            
+            // ปิดการใช้งานปุ่มถ้า hint หมด
+            btnHint.disabled = GameState.hintCount <= 0;
         }
 
         function renderBoard() {
@@ -768,7 +847,10 @@
                 highlightRelatedCells(index);
             }
             if (GameState.currentBoard[index] === 0) {
-                document.getElementById('hint-text').textContent = "ช่องนี้ว่างอยู่ ลองใส่ตัวเลข หรือกดปุ่ม 'ขอคำแนะนำ'";
+                document.getElementById('hint-text').innerHTML = `
+                    <div>ช่องนี้ว่างอยู่ ลองใส่ตัวเลข หรือกดปุ่ม 'ขอคำแนะนำ'</div>
+                    <div class="hint-used">มี คำแนะนำ เหลือ: <span id="hint-remaining">${GameState.hintCount}</span> ครั้ง</div>
+                `;
             }
         }
 
@@ -858,7 +940,7 @@
             } else if (!isCorrect) {
                 recordMistake(index, value, 'logic');
                 cellEl.classList.add('error');
-                showToast('ตัวเลขนี้ไม่ถูกต้องตามตรรกะ', true);
+                showToast('ตัวเลขนี้ไม่ถูกต้อง', true);
             } else {
                 cellEl.classList.add('correct');
                 showToast('ถูกต้อง! ✓');
@@ -1008,28 +1090,51 @@
                 showToast('เกมจบแล้ว! เริ่มเกมใหม่เพื่อเล่นอีกครั้ง', true);
                 return;
             }
+            
+            // ตรวจสอบจำนวน hint ที่เหลือ
+            if (GameState.hintCount <= 0) {
+                document.getElementById('hint-text').innerHTML = `
+                    <div class="hint-limit-reached">⚠️ คุณใช้ คำแนะนำ ครบ 5 ครั้งแล้ว!</div>
+                    <div>ลองใช้ตรรกะของคุณเองในการแก้ปัญหา</div>
+                `;
+                showToast('ใช้ คำแนะนำ ครบจำนวนแล้ว!', true);
+                return;
+            }
+            
             if (GameState.selectedCell === null) {
                 document.getElementById('hint-text').textContent = "กรุณาเลือกช่องว่างก่อนครับ";
                 showToast('เลือกช่องว่างก่อนขอคำแนะนำ', true);
                 return;
             }
+            
             const index = GameState.selectedCell;
             if (GameState.fixedCells.includes(index)) {
                 document.getElementById('hint-text').textContent = "ช่องนี้เป็นตัวเลขเริ่มต้นที่ไม่สามารถเปลี่ยนได้";
                 return;
             }
+            
             if (GameState.currentBoard[index] !== 0) {
                 document.getElementById('hint-text').textContent = "ช่องนี้มีตัวเลขอยู่แล้ว ลองเลือกช่องว่างอื่นสิ!";
                 return;
             }
+            
+            // ลดจำนวน hint ที่เหลือ
+            GameState.hintCount--;
+            GameState.hintUsed++;
+            
+            // อัพเดทปุ่ม hint
+            updateHintButton();
+            
             const { row, col } = getPosition(index);
             const correctValue = GameState.solution[index];
             const candidates = [];
+            
             for (let num = 1; num <= 9; num++) {
                 if (isValidPlacement(GameState.currentBoard, index, num)) {
                     candidates.push(num);
                 }
             }
+            
             let hint = '';
             if (candidates.length === 1) {
                 hint = `[ตรรกะพื้นฐาน] ช่องนี้สามารถใส่ได้แค่เลข ${candidates[0]} เท่านั้น`;
@@ -1038,8 +1143,14 @@
             } else {
                 hint = `[การวิเคราะห์] ในแถวที่ ${row + 1} และหลักที่ ${col + 1} ลองหาตัวเลขที่หายไป. คำตอบคือเลข ${correctValue}`;
             }
-            document.getElementById('hint-text').textContent = hint;
+            
+            document.getElementById('hint-text').innerHTML = `
+                <div>${hint}</div>
+                <div class="hint-used">ใช้ คำแนะนำ ครั้งที่ ${GameState.hintUsed} (เหลือ ${GameState.hintCount} ครั้ง)</div>
+            `;
+            
             highlightNumber(correctValue);
+            showToast(`ใช้ คำแนะนำ ครั้งที่ ${GameState.hintUsed} (เหลือ ${GameState.hintCount} ครั้ง)`);
         }
 
         function highlightNumber(num) {
@@ -1069,7 +1180,8 @@
                     </div>
                     <div style="margin-top: 10px;">
                         เวลาที่ใช้: ${formatTime(GameState.seconds)} |
-                        ผิดพลาด: ${GameState.mistakes.length} ครั้ง
+                        ผิดพลาด: ${GameState.mistakes.length} ครั้ง |
+                        Hint ที่ใช้: ${GameState.hintUsed} ครั้ง
                     </div>
                 `;
                 showToast(`🎊 ชนะ! ใช้เวลา ${formatTime(GameState.seconds)}`);
@@ -1098,27 +1210,51 @@
             const overlay = document.getElementById('analysis-overlay');
             const content = document.getElementById('analysis-content');
             overlay.style.display = 'flex';
+            
+            // เพิ่มส่วนแสดงจำนวน hint ที่ใช้
+            const hintUsageSection = `
+                <div style="margin: 15px 0; padding: 15px; background: #fffbeb; border-radius: var(--radius-md); border-left: 4px solid var(--warning);">
+                    <div style="font-weight: 600; color: #92400e; margin-bottom: 5px;">🧠 การใช้ คำแนะนำ</div>
+                    <div style="display: flex; justify-content: space-between;">
+                        <div>จำนวน Hint ที่ใช้:</div>
+                        <div style="font-weight: 600;">${GameState.hintUsed} / 5 ครั้ง</div>
+                    </div>
+                    <div style="margin-top: 8px; font-size: 0.9rem; color: #666;">
+                        ${GameState.hintUsed === 0 ? 'ยอดเยี่ยม! คุณแก้ปัญหาด้วยตัวเองทั้งหมด' : 
+                          GameState.hintUsed <= 2 ? 'ดีมาก! คุณพึ่งพา Hint น้อยมาก' :
+                          GameState.hintUsed <= 4 ? 'ใช้ Hint ในปริมาณที่เหมาะสม' :
+                          'ลองฝึกใช้ตรรกะมากขึ้นในการเล่นครั้งต่อไป'}
+                    </div>
+                </div>
+            `;
+            
             if (GameState.mistakes.length === 0) {
                 content.innerHTML = `
                     <div style="text-align: center; padding: 30px 0;">
                         <div style="font-size: 4rem; margin-bottom: 20px;">🏆</div>
                         <h3 style="color: var(--success);">สมบูรณ์แบบ!</h3>
                         <p>คุณแก้โจทย์นี้ได้โดยไม่มีข้อผิดพลาดเลย</p>
+                        ${hintUsageSection}
                         <div style="margin-top: 20px; padding: 20px; background: #f0f9ff; border-radius: var(--radius-md);">
                             <div><b>ระดับความยาก:</b> ${GameState.difficulty}</div>
                             <div><b>เวลาที่ใช้:</b> ${formatTime(GameState.seconds)}</div>
+                            <div><b>Hint ที่ใช้:</b> ${GameState.hintUsed} ครั้ง</div>
                         </div>
                     </div>
                 `;
                 return;
             }
+            
             let html = `
                 <h3>รายการวิเคราะห์ความผิดพลาด (${GameState.mistakes.length})</h3>
+                ${hintUsageSection}
                 <div style="margin-bottom: 20px; padding: 15px; background: #f8fafc; border-radius: var(--radius-md);">
                     <div><b>สรุปผล:</b> ${GameState.isCompleted ? 'สำเร็จ' : 'ยังไม่จบเกม'}</div>
                     <div><b>เวลาที่ใช้:</b> ${formatTime(GameState.seconds)}</div>
+                    <div><b>Hint ที่ใช้:</b> ${GameState.hintUsed} ครั้ง</div>
                 </div>
             `;
+            
             GameState.mistakes.forEach((m, i) => {
                 html += `
                     <div style="border-bottom: 1px solid var(--border); padding: 15px 0;">
@@ -1130,6 +1266,7 @@
                     </div>
                 `;
             });
+            
             html += `
                 <div style="margin-top: 30px; padding: 20px; background: #f0f9ff; border-radius: var(--radius-md);">
                     <h4>💡 คำแนะนำสำหรับการฝึกซ้อม</h4>
@@ -1137,6 +1274,8 @@
                         <li>ฝึกสแกนทั้งแถวและหลักก่อนใส่ตัวเลข</li>
                         <li>ใช้เทคนิคการตัดตัวเลือก (Elimination)</li>
                         <li>ตรวจสอบกล่อง 3x3 ให้ครบทั้ง 9 ช่อง</li>
+                        <li>ใช้ Hint อย่างชาญฉลาด (เหลือ ${GameState.hintCount} ครั้ง)</li>
+                        <li>พยายามลดการพึ่งพา Hint ในการเล่นครั้งต่อไป</li>
                     </ul>
                 </div>
             `;
@@ -1159,6 +1298,8 @@
         function init() {
             setDifficulty('easy');
             btnUndo.disabled = true;
+            // อัพเดทปุ่ม hint เมื่อเริ่มต้น
+            updateHintButton();
         }
 
         window.addEventListener('load', init);
