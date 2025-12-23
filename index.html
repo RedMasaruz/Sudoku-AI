@@ -580,6 +580,10 @@
             box-shadow: var(--shadow-md);
         }
 
+        .number-pad.show {
+            display: grid !important;
+        }
+
         .number-btn {
             background: linear-gradient(135deg, #64748b 0%, #475569 100%);
             color: white;
@@ -594,15 +598,14 @@
             user-select: none;
             transition: all 0.2s ease;
             touch-action: manipulation;
-        }
-
-        .number-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: var(--shadow-md);
+            border: none;
+            outline: none;
+            -webkit-appearance: none;
         }
 
         .number-btn:active {
-            transform: translateY(0);
+            transform: scale(0.95);
+            opacity: 0.8;
         }
 
         .number-btn.delete {
@@ -899,18 +902,18 @@
             
             <!-- แป้นตัวเลขสำหรับอุปกรณ์มือถือ -->
             <div class="number-pad" id="number-pad">
-                <div class="number-btn" data-number="1">1</div>
-                <div class="number-btn" data-number="2">2</div>
-                <div class="number-btn" data-number="3">3</div>
-                <div class="number-btn" data-number="4">4</div>
-                <div class="number-btn" data-number="5">5</div>
-                <div class="number-btn" data-number="6">6</div>
-                <div class="number-btn" data-number="7">7</div>
-                <div class="number-btn" data-number="8">8</div>
-                <div class="number-btn" data-number="9">9</div>
-                <div class="number-btn delete" id="btn-delete">ลบ</div>
-                <div class="number-btn clear" id="btn-clear">เคลียร์</div>
-                <div class="number-btn hint" id="btn-mobile-hint">คำแนะนำ</div>
+                <button class="number-btn" data-number="1">1</button>
+                <button class="number-btn" data-number="2">2</button>
+                <button class="number-btn" data-number="3">3</button>
+                <button class="number-btn" data-number="4">4</button>
+                <button class="number-btn" data-number="5">5</button>
+                <button class="number-btn" data-number="6">6</button>
+                <button class="number-btn" data-number="7">7</button>
+                <button class="number-btn" data-number="8">8</button>
+                <button class="number-btn" data-number="9">9</button>
+                <button class="number-btn delete" id="btn-delete">ลบ</button>
+                <button class="number-btn clear" id="btn-clear">เคลียร์</button>
+                <button class="number-btn hint" id="btn-mobile-hint">คำแนะนำ</button>
             </div>
             
             <div class="hint-box" id="hint-display">
@@ -1019,19 +1022,12 @@
             
             GameState.isMobile = isTouchDevice && isSmallScreen;
             
-            console.log('ตรวจสอบอุปกรณ์:', {
-                isTouchDevice: isTouchDevice,
-                screenWidth: window.innerWidth,
-                isSmallScreen: isSmallScreen,
-                isMobile: GameState.isMobile
-            });
-            
             // แสดงหรือซ่อนแป้นตัวเลข
             if (GameState.isMobile) {
-                numberPad.style.display = 'grid';
+                numberPad.classList.add('show');
                 console.log('แสดงแป้นตัวเลขบนมือถือ');
             } else {
-                numberPad.style.display = 'none';
+                numberPad.classList.remove('show');
                 console.log('ซ่อนแป้นตัวเลขบนเดสก์ท็อป');
             }
         }
@@ -1045,107 +1041,77 @@
             
             console.log('กำลังตั้งค่าแป้นตัวเลข...');
             
-            const numberBtns = numberPad.querySelectorAll('.number-btn[data-number]');
-            const deleteBtn = document.getElementById('btn-delete');
-            const clearBtn = document.getElementById('btn-clear');
-            const hintBtn = document.getElementById('btn-mobile-hint');
-            
-            // ปุ่มตัวเลข 1-9
-            numberBtns.forEach(btn => {
-                btn.addEventListener('click', function(e) {
+            // ใช้ event delegation สำหรับประสิทธิภาพ
+            numberPad.addEventListener('click', function(e) {
+                // หาปุ่มที่ถูกคลิก
+                const target = e.target;
+                
+                // ตรวจสอบว่าเป็นปุ่มตัวเลขหรือไม่
+                if (target.classList.contains('number-btn')) {
                     e.preventDefault();
                     e.stopPropagation();
                     
-                    console.log('กดปุ่มตัวเลข:', this.getAttribute('data-number'));
+                    console.log('กดปุ่ม:', target.textContent);
                     
+                    // เพิ่มเอฟเฟกต์เมื่อกด
+                    target.style.transform = 'scale(0.95)';
+                    target.style.opacity = '0.8';
+                    
+                    setTimeout(() => {
+                        target.style.transform = 'scale(1)';
+                        target.style.opacity = '1';
+                    }, 150);
+                    
+                    // ตรวจสอบว่ามีช่องที่เลือกอยู่หรือไม่
                     if (GameState.selectedCell === null) {
                         showToast('เลือกช่องก่อนใส่ตัวเลข', 'warning');
                         return;
                     }
                     
-                    const number = this.getAttribute('data-number');
+                    const number = target.getAttribute('data-number');
+                    
                     if (number) {
+                        // ปุ่มตัวเลข 1-9
                         handleInput(GameState.selectedCell, parseInt(number));
-                        
-                        // เพิ่มเอฟเฟกต์เมื่อกด
-                        this.style.transform = 'scale(0.95)';
-                        setTimeout(() => {
-                            this.style.transform = 'scale(1)';
-                        }, 150);
+                    } else if (target.textContent === 'ลบ') {
+                        // ปุ่มลบ
+                        handleInput(GameState.selectedCell, 0);
+                    } else if (target.textContent === 'เคลียร์') {
+                        // ปุ่มเคลียร์
+                        if (GameState.selectedCell !== null && !GameState.fixedCells.includes(GameState.selectedCell)) {
+                            GameState.currentBoard[GameState.selectedCell] = 0;
+                            const cellEl = document.querySelector(`[data-index="${GameState.selectedCell}"]`);
+                            if (cellEl) {
+                                cellEl.textContent = '';
+                                cellEl.classList.remove('error', 'correct');
+                            }
+                            showToast('ล้างตัวเลขแล้ว', 'success');
+                        }
+                    } else if (target.textContent === 'คำแนะนำ') {
+                        // ปุ่มคำแนะนำ
+                        getAIHint();
                     }
-                });
+                }
             });
             
-            // ปุ่มลบ
-            if (deleteBtn) {
-                deleteBtn.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    
-                    console.log('กดปุ่มลบ');
-                    
-                    if (GameState.selectedCell === null) {
-                        showToast('เลือกช่องก่อนลบตัวเลข', 'warning');
-                        return;
-                    }
-                    
-                    handleInput(GameState.selectedCell, 0);
-                    
-                    // เพิ่มเอฟเฟกต์เมื่อกด
-                    this.style.transform = 'scale(0.95)';
-                    setTimeout(() => {
-                        this.style.transform = 'scale(1)';
-                    }, 150);
-                });
-            }
+            // เพิ่มการจัดการ touch events สำหรับมือถือ
+            numberPad.addEventListener('touchstart', function(e) {
+                const target = e.target;
+                if (target.classList.contains('number-btn')) {
+                    target.style.transform = 'scale(0.95)';
+                    target.style.opacity = '0.8';
+                }
+            }, { passive: true });
             
-            // ปุ่มเคลียร์
-            if (clearBtn) {
-                clearBtn.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    
-                    console.log('กดปุ่มเคลียร์');
-                    
-                    if (GameState.selectedCell === null) {
-                        showToast('เลือกช่องก่อนเคลียร์', 'warning');
-                        return;
-                    }
-                    
-                    if (GameState.selectedCell !== null && !GameState.fixedCells.includes(GameState.selectedCell)) {
-                        GameState.currentBoard[GameState.selectedCell] = 0;
-                        const cellEl = document.querySelector(`[data-index="${GameState.selectedCell}"]`);
-                        if (cellEl) {
-                            cellEl.textContent = '';
-                            cellEl.classList.remove('error', 'correct');
-                        }
-                        showToast('ล้างตัวเลขแล้ว', 'success');
-                    }
-                    
-                    // เพิ่มเอฟเฟกต์เมื่อกด
-                    this.style.transform = 'scale(0.95)';
+            numberPad.addEventListener('touchend', function(e) {
+                const target = e.target;
+                if (target.classList.contains('number-btn')) {
                     setTimeout(() => {
-                        this.style.transform = 'scale(1)';
+                        target.style.transform = 'scale(1)';
+                        target.style.opacity = '1';
                     }, 150);
-                });
-            }
-            
-            // ปุ่มคำแนะนำ
-            if (hintBtn) {
-                hintBtn.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    
-                    console.log('กดปุ่มคำแนะนำ');
-                    getAIHint();
-                    
-                    // เพิ่มเอฟเฟกต์เมื่อกด
-                    this.style.transform = 'scale(0.95)';
-                    setTimeout(() => {
-                        this.style.transform = 'scale(1)';
-                    }, 150);
-                });
-            }
+                }
+            }, { passive: true });
             
             console.log('ตั้งค่าแป้นตัวเลขเรียบร้อยแล้ว');
         }
@@ -1422,14 +1388,6 @@
                 cell.addEventListener('click', () => {
                     const index = parseInt(cell.dataset.index);
                     selectCell(index);
-                    
-                    // เพิ่มเอฟเฟกต์เมื่อแตะบนมือถือ
-                    if (GameState.isMobile) {
-                        cell.style.transform = 'scale(0.98)';
-                        setTimeout(() => {
-                            cell.style.transform = 'scale(1)';
-                        }, 150);
-                    }
                 });
                 
                 boardEl.appendChild(cell);
@@ -1911,28 +1869,6 @@
         // ตรวจสอบการเปลี่ยนขนาดหน้าจอ
         window.addEventListener('resize', checkDevice);
         
-        // ป้องกันการเลื่อนโดยไม่ตั้งใจบนมือถือ
-        document.addEventListener('touchmove', function(e) {
-            if (e.target.classList.contains('cell') || e.target.classList.contains('number-btn')) {
-                e.preventDefault();
-            }
-        }, { passive: false });
-
-        // เพิ่ม event listener สำหรับการแตะบนมือถือ
-        document.addEventListener('touchstart', function(e) {
-            // เพิ่มคลาส active เมื่อแตะบนปุ่มตัวเลข
-            if (e.target.classList.contains('number-btn')) {
-                e.target.classList.add('active');
-            }
-        }, { passive: true });
-
-        document.addEventListener('touchend', function(e) {
-            // ลบคลาส active เมื่อปล่อยปุ่มตัวเลข
-            if (e.target.classList.contains('number-btn')) {
-                e.target.classList.remove('active');
-            }
-        }, { passive: true });
-
         function init() {
             console.log('กำลังเริ่มต้นแอป...');
             
@@ -1958,16 +1894,9 @@
                 }
             });
             
-            // ป้องกัน double-tap zoom บนมือถือ
-            document.addEventListener('dblclick', function(e) {
-                if (GameState.isMobile) {
-                    e.preventDefault();
-                }
-            });
-            
             // แสดงแป้นตัวเลขทันทีถ้าเป็นมือถือ
             if (GameState.isMobile) {
-                numberPad.style.display = 'grid';
+                numberPad.classList.add('show');
                 console.log('แสดงแป้นตัวเลขบนมือถือใน init()');
             }
             
