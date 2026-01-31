@@ -1,7 +1,7 @@
 {
   "name": "Sudoku Logic Tutor",
   "short_name": "Sudoku Tutor",
-  "start_url": "./SudokuV1.html",
+  "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#f0f4f8",
   "theme_color": "#3b82f6",

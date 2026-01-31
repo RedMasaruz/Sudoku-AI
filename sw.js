@@ -1,6 +1,6 @@
 const CACHE_NAME = 'sudoku-tutor-v1';
 const ASSETS_TO_CACHE = [
-  './SudokuV1.html',
+  './index.html',
   './manifest.json',
   './icon-192.png',
   './icon-512.png',
