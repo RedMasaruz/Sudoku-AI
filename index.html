@@ -1313,34 +1313,54 @@
             return true;
         }
 
+
         // Count number of solutions up to a limit (default 2)
+        // Uses Minimum Remaining Values (MRV) heuristic for performance
         function countSolutions(board, limit = 2) {
             let count = 0;
 
-            function backtrack(idx) {
+            function backtrack() {
                 if (count >= limit) return;
 
-                // Find next empty cell efficiently
-                let i = idx;
-                while (i < 81 && board[i] !== 0) i++;
+                // MRV: Find empty cell with fewest valid candidates
+                let bestIndex = -1;
+                let minCandidates = 10;
 
-                if (i === 81) {
+                for (let i = 0; i < 81; i++) {
+                    if (board[i] === 0) {
+                        let c = 0;
+                        // fast check candidates
+                        for (let val = 1; val <= 9; val++) {
+                            if (isValidPlacement(board, i, val)) c++;
+                        }
+
+                        if (c === 0) return; // Impossible path (0 candidates)
+
+                        if (c < minCandidates) {
+                            minCandidates = c;
+                            bestIndex = i;
+                            if (minCandidates === 1) break; // Optimization: can't beat 1
+                        }
+                    }
+                }
+
+                if (bestIndex === -1) {
                     count++;
                     return;
                 }
 
-                // Try numbers 1-9
-                for (let n = 1; n <= 9; n++) {
+                // Try candidates for the best cell
+                for (let val = 1; val <= 9; val++) {
                     if (count >= limit) break;
-                    if (isValidPlacement(board, i, n)) {
-                        board[i] = n;
-                        backtrack(i + 1);
-                        board[i] = 0;
+                    if (isValidPlacement(board, bestIndex, val)) {
+                        board[bestIndex] = val;
+                        backtrack();
+                        board[bestIndex] = 0;
                     }
                 }
             }
 
-            backtrack(0);
+            backtrack();
             return count;
         }
 
