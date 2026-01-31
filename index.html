@@ -1109,6 +1109,84 @@
 
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
+    <div id="welcome-overlay" class="welcome-overlay">
+        <div class="welcome-content">
+            <div style="font-size: 5rem; margin-bottom: 20px; animation: bounce 2s infinite;">🧩</div>
+            <h1 style="color: var(--primary-dark); margin-bottom: 10px; font-size: 2.5rem;">Sudoku Tutor</h1>
+            <p style="color: var(--secondary); margin-bottom: 40px; font-size: 1.1rem;">ฝึกฝนตรรกะและเรียนรู้การแก้ปัญหา
+            </p>
+            <button class="btn-new" id="btn-start-game"
+                style="font-size: 1.5rem; padding: 20px 50px; border-radius: 50px; box-shadow: var(--shadow-lg);">
+                เริ่มเกม
+            </button>
+        </div>
+    </div>
+
+    <style>
+        .welcome-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(5px);
+            z-index: 2000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            transition: opacity 0.5s ease, visibility 0.5s;
+        }
+
+        .welcome-overlay.hidden {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        .welcome-content {
+            background: white;
+            padding: 40px;
+            border-radius: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            max-width: 90%;
+            width: 400px;
+            animation: slideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes bounce {
+
+            0%,
+            20%,
+            50%,
+            80%,
+            100% {
+                transform: translateY(0);
+            }
+
+            40% {
+                transform: translateY(-20px);
+            }
+
+            60% {
+                transform: translateY(-10px);
+            }
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(50px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+    </style>
+
     <script>
         // Game state
         const GameState = {
@@ -1126,7 +1204,8 @@
             hintUsed: 0,
             isPaused: false,
             pausedTime: 0,
-            isMobile: false
+            isMobile: false,
+            isGameStarted: false // New flag
         };
 
         // Elements
@@ -1135,25 +1214,35 @@
         const numberPad = document.getElementById('number-pad');
         const toast = document.getElementById('toast');
         const btnHint = document.getElementById('btn-hint');
+        const welcomeOverlay = document.getElementById('welcome-overlay');
+        const btnStartGame = document.getElementById('btn-start-game');
 
         // Toast timeout handle (avoid overlapping timeouts)
+        // ... (rest of the script) ...
+
         let toastTimeout = null;
 
         // Utilities
         function shuffleArray(array) {
-            const newArray = [...array];
-            for (let i = newArray.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = (Math.random() * (i + 1)) | 0;
+                const temp = array[i];
+                array[i] = array[j];
+                array[j] = temp;
             }
-            return newArray;
+            return array;
         }
 
-        function getPosition(index) {
-            const row = Math.floor(index / 9);
-            const col = index % 9;
-            const box = Math.floor(row / 3) * 3 + Math.floor(col / 3);
+        // Cached positions to avoid runtime calculation overhead in loops
+        const CELL_INDICES = Array.from({ length: 81 }, (_, i) => {
+            const row = (i / 9) | 0;
+            const col = i % 9;
+            const box = ((row / 3) | 0) * 3 + ((col / 3) | 0);
             return { row, col, box };
+        });
+
+        function getPosition(index) {
+            return CELL_INDICES[index];
         }
 
         function getIndex(row, col) {
@@ -1161,22 +1250,26 @@
         }
 
         function isValidPlacement(board, index, num) {
-            const { row, col } = getPosition(index);
+            const { row, col, box } = CELL_INDICES[index];
 
-            for (let c = 0; c < 9; c++) {
-                if (board[getIndex(row, c)] === num) return false;
+            // Check Row & Column
+            for (let i = 0; i < 9; i++) {
+                // Row check
+                if (board[row * 9 + i] === num) return false;
+                // Col check
+                if (board[i * 9 + col] === num) return false;
             }
 
-            for (let r = 0; r < 9; r++) {
-                if (board[getIndex(r, col)] === num) return false;
-            }
+            // Check Box
+            const boxStartRow = (box === 0 || box === 1 || box === 2) ? 0 : (box === 3 || box === 4 || box === 5) ? 3 : 6;
+            const boxStartCol = (box === 0 || box === 3 || box === 6) ? 0 : (box === 1 || box === 4 || box === 7) ? 3 : 6;
+            const start = boxStartRow * 9 + boxStartCol;
 
-            const boxRow = Math.floor(row / 3) * 3;
-            const boxCol = Math.floor(col / 3) * 3;
-            for (let r = boxRow; r < boxRow + 3; r++) {
-                for (let c = boxCol; c < boxCol + 3; c++) {
-                    if (board[getIndex(r, c)] === num) return false;
-                }
+            for (let r = 0; r < 3; r++) {
+                const rowOffset = start + r * 9;
+                if (board[rowOffset] === num ||
+                    board[rowOffset + 1] === num ||
+                    board[rowOffset + 2] === num) return false;
             }
 
             return true;
@@ -1199,12 +1292,15 @@
             return true;
         }
 
-        // Backtracking solver used for generation with randomness (keeps variety)
+        // Backtracking solver used for generation with randomness
         function solveSudoku(board, startIndex = 0) {
             for (let i = startIndex; i < 81; i++) {
                 if (board[i] === 0) {
-                    const numbers = shuffleArray([1, 2, 3, 4, 5, 6, 7, 8, 9]);
-                    for (const num of numbers) {
+                    const numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+                    shuffleArray(numbers);
+
+                    for (let j = 0; j < 9; j++) {
+                        const num = numbers[j];
                         if (isValidPlacement(board, i, num)) {
                             board[i] = num;
                             if (solveSudoku(board, i + 1)) return true;
@@ -1217,63 +1313,59 @@
             return true;
         }
 
-        // Count number of solutions up to a limit (default 2) - early exit if > limit
+        // Count number of solutions up to a limit (default 2)
         function countSolutions(board, limit = 2) {
             let count = 0;
 
-            function backtrack() {
+            function backtrack(idx) {
                 if (count >= limit) return;
-                let idx = -1;
-                // Find the empty cell with fewest candidates (heuristic)
-                let minCandidates = 10;
-                for (let i = 0; i < 81; i++) {
-                    if (board[i] === 0) {
-                        let candidates = 0;
-                        for (let n = 1; n <= 9; n++) {
-                            if (isValidPlacement(board, i, n)) candidates++;
-                        }
-                        if (candidates < minCandidates) {
-                            minCandidates = candidates;
-                            idx = i;
-                            if (minCandidates === 1) break;
-                        }
-                    }
-                }
-                if (idx === -1) {
+
+                // Find next empty cell efficiently
+                let i = idx;
+                while (i < 81 && board[i] !== 0) i++;
+
+                if (i === 81) {
                     count++;
                     return;
                 }
-                for (let n = 1; n <= 9 && count < limit; n++) {
-                    if (isValidPlacement(board, idx, n)) {
-                        board[idx] = n;
-                        backtrack();
-                        board[idx] = 0;
+
+                // Try numbers 1-9
+                for (let n = 1; n <= 9; n++) {
+                    if (count >= limit) break;
+                    if (isValidPlacement(board, i, n)) {
+                        board[i] = n;
+                        backtrack(i + 1);
+                        board[i] = 0;
                     }
                 }
             }
 
-            backtrack();
+            backtrack(0);
             return count;
         }
 
         // Generate a complete board: fill diagonal boxes (0,4,8) randomly then solve
         function generateFullBoard() {
             const board = Array(81).fill(0);
+            const numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+
             // fill diagonal 3x3 boxes to reduce search space
             for (let box = 0; box < 9; box += 4) {
-                const numbers = shuffleArray([1, 2, 3, 4, 5, 6, 7, 8, 9]);
-                const boxRow = Math.floor(box / 3) * 3;
-                const boxCol = (box % 3) * 3;
+                shuffleArray(numbers);
+
+                const boxStartRow = ((box / 3) | 0) * 3;
+                const boxStartCol = (box % 3) * 3;
                 let idx = 0;
-                for (let r = boxRow; r < boxRow + 3; r++) {
-                    for (let c = boxCol; c < boxCol + 3; c++) {
-                        board[getIndex(r, c)] = numbers[idx++];
+
+                for (let r = 0; r < 3; r++) {
+                    for (let c = 0; c < 3; c++) {
+                        board[(boxStartRow + r) * 9 + (boxStartCol + c)] = numbers[idx++];
                     }
                 }
             }
+
             // Solve the rest randomly
             if (!solveSudoku(board)) {
-                // If fail (rare), try again
                 return generateFullBoard();
             }
             return board;
@@ -1284,37 +1376,40 @@
             const board = [...fullBoard];
             const fixedCells = [];
 
-            // number of removals target by difficulty
+            // Adjusted removal targets for better difficulty curve
+            // Easy: ~41 clues left (remove 40)
+            // Medium: ~31 clues left (remove 50)
+            // Hard: ~23 clues left (remove 58) - challenging but standard
             let removalsTarget;
             switch (difficulty) {
-                case 'easy': removalsTarget = 35; break;
-                case 'medium': removalsTarget = 45; break;
-                case 'hard': removalsTarget = 55; break;
-                default: removalsTarget = 35;
+                case 'easy': removalsTarget = 40; break;
+                case 'medium': removalsTarget = 50; break;
+                case 'hard': removalsTarget = 58; break;
+                default: removalsTarget = 40;
             }
 
-            const positions = shuffleArray(Array.from({ length: 81 }, (_, i) => i));
+            const positions = Array.from({ length: 81 }, (_, i) => i);
+            shuffleArray(positions);
+
             let removed = 0;
+            const startTime = Date.now();
 
             // For uniqueness, attempt removal and check solution count
             for (const pos of positions) {
                 if (removed >= removalsTarget) break;
+                // Safety break to prevent UI freeze on slow devices (1s limit)
+                if (Date.now() - startTime > 1000) break;
+
                 const temp = board[pos];
                 board[pos] = 0;
 
-                // Quick pruning: if removing this breaks basic validity, revert
-                if (!isBoardValidPartial(board)) {
-                    board[pos] = temp;
-                    continue;
-                }
-
+                // Check uniqueness
+                // We use a clone because countSolutions modifies the board
                 const clone = [...board];
-                const sols = countSolutions(clone, 2); // only need to know if >1
-                if (sols === 1) {
+                if (countSolutions(clone, 2) === 1) {
                     removed++;
                 } else {
-                    // revert removal to keep unique solution
-                    board[pos] = temp;
+                    board[pos] = temp; // Revert if not unique
                 }
             }
 
@@ -1322,10 +1417,11 @@
                 if (board[i] !== 0) fixedCells.push(i);
             }
 
-            const emptyCells = board.filter(v => v === 0).length;
-
+            const emptyCells = 81 - fixedCells.length;
             return { board, fixedCells, emptyCells };
         }
+
+
 
         // Quick validation for partially filled board (no duplicates in row/col/box)
         function isBoardValidPartial(board) {
@@ -1574,20 +1670,36 @@
         }
 
         function highlightRelatedCells(index) {
-            const { row, col, box } = getPosition(index);
-            document.querySelectorAll('.cell').forEach(cell => {
-                const cellIndex = parseInt(cell.dataset.index);
-                const { row: r, col: c, box: b } = getPosition(cellIndex);
-                cell.classList.remove('highlighted');
-                if (r === row || c === col || b === box) {
-                    cell.classList.add('highlighted');
-                }
-            });
-            // keep selected visible
-            const selected = document.querySelector(`[data-index="${index}"]`);
-            if (selected) {
-                selected.classList.add('selected');
+            const { row, col, box } = CELL_INDICES[index];
+            const cells = boardEl.children;
+
+            // 1. Fast clear previous highlights
+            const highlighted = document.getElementsByClassName('highlighted');
+            while (highlighted.length > 0) {
+                highlighted[0].classList.remove('highlighted');
             }
+
+            // 2. Calculate indices to highlight
+            const indices = new Set();
+
+            // Row
+            for (let c = 0; c < 9; c++) indices.add(row * 9 + c);
+            // Col
+            for (let r = 0; r < 9; r++) indices.add(r * 9 + col);
+            // Box
+            const boxStartRow = ((box / 3) | 0) * 3;
+            const boxStartCol = (box % 3) * 3;
+            const boxStart = boxStartRow * 9 + boxStartCol;
+            for (let r = 0; r < 3; r++) {
+                for (let c = 0; c < 3; c++) {
+                    indices.add(boxStart + r * 9 + c);
+                }
+            }
+
+            // 3. Apply class to specific cells
+            indices.forEach(idx => {
+                if (cells[idx]) cells[idx].classList.add('highlighted');
+            });
         }
 
         // keyboard handling
@@ -2197,8 +2309,27 @@
             checkDevice();
             initNumberPad();
 
-            // Set default difficulty and start
+            // Set default difficulty and start (but pause timer immediately for welcome screen)
             setDifficulty('easy');
+
+            // Stop timer immediately to wait for User Start
+            clearInterval(GameState.timer);
+            GameState.isGameStarted = false;
+
+            // Handle Start Button
+            if (btnStartGame) {
+                btnStartGame.addEventListener('click', () => {
+                    const welcomeOverlay = document.getElementById('welcome-overlay');
+                    if (welcomeOverlay) {
+                        welcomeOverlay.classList.add('hidden');
+                        setTimeout(() => { welcomeOverlay.style.display = 'none'; }, 500);
+                    }
+                    // Actually start the game now
+                    GameState.isGameStarted = true;
+                    startTimer();
+                    showToast('เริ่มเกมแล้ว! ขอให้โชคดีครับ 🍀', 'success');
+                });
+            }
 
             // Update UI controls
             updateHintButton();
